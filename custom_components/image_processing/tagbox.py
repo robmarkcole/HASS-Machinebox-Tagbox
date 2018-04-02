@@ -74,7 +74,10 @@ class Tagbox(ImageProcessingEntity):
                 tags.update(self.process_tags(response['custom_tags']))
 
             self._attributes = tags
-            self._state = max(tags.keys(), key=(lambda k: tags[k]))
+            if tags:
+                self._state = max(tags.keys(), key=(lambda k: tags[k]))
+            else:
+                self._state = "No_tags"
         else:
             self._state = "Request_failed"
             self._attributes = self._default_tags

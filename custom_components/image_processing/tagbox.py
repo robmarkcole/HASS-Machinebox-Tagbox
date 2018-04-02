@@ -19,6 +19,7 @@ from homeassistant.components.image_processing import (
 _LOGGER = logging.getLogger(__name__)
 
 CONF_ENDPOINT = 'endpoint'
+ROUNDING_DECIMALS = 3
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_ENDPOINT): cv.string
@@ -61,11 +62,17 @@ class Tagbox(ImageProcessingEntity):
             ).json()
 
         if response['success']:
-            self._state = response['tags'][0]['tag']
-            self._attributes = {
-                tag['tag']: round(tag['confidence'], 2)
+            tags = {
+                tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
                 for tag in response['tags']
                 }
+            if response['custom_tags']:
+                custom_tags = {
+                    tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
+                    for tag in response['custom_tags']}
+                tags.update(custom_tags)
+            self._attributes = tags
+            self._state = max(tags.keys(), key=(lambda k: tags[k]))
         else:
             self._state = "Request_failed"
             self._attributes = {}

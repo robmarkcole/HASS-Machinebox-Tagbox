@@ -67,16 +67,11 @@ class Tagbox(ImageProcessingEntity):
             ).json()
 
         if response['success']:
-            tags = {
-                tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
-                for tag in response['tags']
-                }
+            tags = self.process_tags(response['tags'])
             tags.update(self._default_tags)
-            # If there are custom tages, overwrite default tags.
+            # If there are custom tags, overwrite default tags.
             if response['custom_tags']:
-                custom_tags = {
-                    tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
-                    for tag in response['custom_tags']}
+                custom_tags = self.process_tags(response['custom_tags'])
                 tags.update(custom_tags)
 
             self._attributes = tags
@@ -93,6 +88,14 @@ class Tagbox(ImageProcessingEntity):
     def get_default_tags(self, tags_list):
         """Take a list of tags and return dict with 0.0 values."""
         return {tag: 0.0 for tag in tags_list}
+
+    def process_tags(self, tags_data):
+        """Process tags data from Facebox response."""
+        tags = {
+            tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
+            for tag in tags_data
+            }
+        return tags
 
     @property
     def camera_entity(self):

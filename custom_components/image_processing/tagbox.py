@@ -8,6 +8,7 @@ https://home-assistant.io/components/image_processing.tagbox
 import base64
 import requests
 import logging
+import time
 import voluptuous as vol
 
 from homeassistant.core import split_entity_id
@@ -20,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_ENDPOINT = 'endpoint'
 CONF_TAGS = 'tags'
-ROUNDING_DECIMALS = 3
+ROUNDING_DECIMALS = 2
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_ENDPOINT): cv.string,
@@ -56,31 +57,36 @@ class Tagbox(ImageProcessingEntity):
         self._camera = camera_entity
         self._default_tags = self.get_default_tags(tags)
         self._url = "http://{}/tagbox/check".format(endpoint)
-        self._state = None
-        self._attributes = self._default_tags
+        self._state = 'No_processing_performed'
+        self._tags = self._default_tags
+        self._response_time = None
 
     def process_image(self, image):
         """Process an image."""
+        timer_start = time.perf_counter()
         response = requests.post(
             self._url,
             json=self.encode_image(image)
             ).json()
 
         if response['success']:
-            tags = self._default_tags
+            elapsed_time = time.perf_counter() - timer_start
+            self._response_time = round(elapsed_time, 1)
+
+            tags = self._default_tags.copy()
             tags.update(self.process_tags(response['tags']))
-            # If there are custom tags, overwrite default tags.
+
             if response['custom_tags']:
                 tags.update(self.process_tags(response['custom_tags']))
-
-            self._attributes = tags
-            if tags:
+            self._tags = tags
+            # Default tags have probability 0.0 and cause an exception.
+            try:
                 self._state = max(tags.keys(), key=(lambda k: tags[k]))
-            else:
-                self._state = "No_tags"
+            except:
+                self._state = "No_tags_identified"
         else:
             self._state = "Request_failed"
-            self._attributes = self._default_tags
+            self._tags = self._default_tags
 
     def encode_image(self, image):
         """base64 encode an image stream."""
@@ -107,7 +113,9 @@ class Tagbox(ImageProcessingEntity):
     @property
     def device_state_attributes(self):
         """Return other details about the sensor state."""
-        return self._attributes
+        attr = self._tags.copy()
+        attr.update({'response_time': self._response_time})
+        return attr
 
     @property
     def state(self):

@@ -67,12 +67,11 @@ class Tagbox(ImageProcessingEntity):
             ).json()
 
         if response['success']:
-            tags = self.process_tags(response['tags'])
-            tags.update(self._default_tags)
+            tags = self._default_tags
+            tags.update(self.process_tags(response['tags']))
             # If there are custom tags, overwrite default tags.
             if response['custom_tags']:
-                custom_tags = self.process_tags(response['custom_tags'])
-                tags.update(custom_tags)
+                tags.update(self.process_tags(response['custom_tags']))
 
             self._attributes = tags
             self._state = max(tags.keys(), key=(lambda k: tags[k]))
@@ -92,7 +91,7 @@ class Tagbox(ImageProcessingEntity):
     def process_tags(self, tags_data):
         """Process tags data from Facebox response."""
         tags = {
-            tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
+            tag['tag'].lower(): round(tag['confidence'], ROUNDING_DECIMALS)
             for tag in tags_data
             }
         return tags

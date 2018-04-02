@@ -19,10 +19,13 @@ from homeassistant.components.image_processing import (
 _LOGGER = logging.getLogger(__name__)
 
 CONF_ENDPOINT = 'endpoint'
+CONF_TAGS = 'tags'
 ROUNDING_DECIMALS = 3
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_ENDPOINT): cv.string
+    vol.Required(CONF_ENDPOINT): cv.string,
+    vol.Optional(CONF_TAGS, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
 })
 
 
@@ -34,6 +37,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             camera.get(CONF_NAME),
             config[CONF_ENDPOINT],
             camera[CONF_ENTITY_ID],
+            config[CONF_TAGS],
         ))
     add_devices(entities)
 
@@ -41,7 +45,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class Tagbox(ImageProcessingEntity):
     """Perform a tag search via a Tagbox."""
 
-    def __init__(self, name, endpoint, camera_entity):
+    def __init__(self, name, endpoint, camera_entity, tags):
         """Init with the API key and model id"""
         super().__init__()
         if name:  # Since name is optional.
@@ -50,9 +54,10 @@ class Tagbox(ImageProcessingEntity):
             self._name = "Tagbox {0}".format(
                 split_entity_id(camera_entity)[1])
         self._camera = camera_entity
+        self._default_tags = self.get_default_tags(tags)
         self._url = "http://{}/tagbox/check".format(endpoint)
         self._state = None
-        self._attributes = {}
+        self._attributes = self._default_tags
 
     def process_image(self, image):
         """Process an image."""
@@ -66,21 +71,28 @@ class Tagbox(ImageProcessingEntity):
                 tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
                 for tag in response['tags']
                 }
+            tags.update(self._default_tags)
+            # If there are custom tages, overwrite default tags.
             if response['custom_tags']:
                 custom_tags = {
                     tag['tag']: round(tag['confidence'], ROUNDING_DECIMALS)
                     for tag in response['custom_tags']}
                 tags.update(custom_tags)
+
             self._attributes = tags
             self._state = max(tags.keys(), key=(lambda k: tags[k]))
         else:
             self._state = "Request_failed"
-            self._attributes = {}
+            self._attributes = self._default_tags
 
     def encode_image(self, image):
         """base64 encode an image stream."""
         base64_img = base64.b64encode(image).decode('ascii')
         return {"base64": base64_img}
+
+    def get_default_tags(self, tags_list):
+        """Take a list of tags and return dict with 0.0 values."""
+        return {tag: 0.0 for tag in tags_list}
 
     @property
     def camera_entity(self):

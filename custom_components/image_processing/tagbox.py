@@ -57,7 +57,7 @@ class Tagbox(ImageProcessingEntity):
         self._camera = camera_entity
         self._default_tags = self.get_default_tags(tags)
         self._url = "http://{}/tagbox/check".format(endpoint)
-        self._state = 'No_processing_performed'
+        self._state = "No_processing_performed"
         self._tags = self._default_tags
         self._response_time = None
 
@@ -71,7 +71,7 @@ class Tagbox(ImageProcessingEntity):
 
         if response['success']:
             elapsed_time = time.perf_counter() - timer_start
-            self._response_time = round(elapsed_time, 1)
+            self._response_time = round(elapsed_time, ROUNDING_DECIMALS)
 
             tags = self._default_tags.copy()
             tags.update(self.process_tags(response['tags']))
@@ -98,7 +98,7 @@ class Tagbox(ImageProcessingEntity):
         return {tag: 0.0 for tag in tags_list}
 
     def process_tags(self, tags_data):
-        """Process tags data from Facebox response."""
+        """Process tags data from tagbox response."""
         tags = {
             tag['tag'].lower(): round(tag['confidence'], ROUNDING_DECIMALS)
             for tag in tags_data

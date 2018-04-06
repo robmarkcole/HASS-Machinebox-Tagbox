@@ -22,6 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 CONF_ENDPOINT = 'endpoint'
 CONF_TAGS = 'tags'
 ROUNDING_DECIMALS = 2
+CONFIDENCE_THRESHOLD = 0.0
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_ENDPOINT): cv.string,
@@ -59,6 +60,7 @@ class Tagbox(ImageProcessingEntity):
         self._url = "http://{}/tagbox/check".format(endpoint)
         self._state = "No_processing_performed"
         self._tags = self._default_tags
+        self._total_confident_tags = None
         self._response_time = None
 
     def process_image(self, image):
@@ -79,6 +81,10 @@ class Tagbox(ImageProcessingEntity):
             if response['custom_tags']:
                 tags.update(self.process_tags(response['custom_tags']))
             self._tags = tags
+            confident_tags = [key for (key, value) in tags.items()
+                              if value > CONFIDENCE_THRESHOLD]
+            self._total_confident_tags = len(confident_tags)
+
             # Default tags have probability 0.0 and cause an exception.
             try:
                 self._state = max(tags.keys(), key=(lambda k: tags[k]))
@@ -87,6 +93,7 @@ class Tagbox(ImageProcessingEntity):
         else:
             self._state = "Request_failed"
             self._tags = self._default_tags
+            self._total_confident_tags = None
 
     def encode_image(self, image):
         """base64 encode an image stream."""
@@ -115,6 +122,7 @@ class Tagbox(ImageProcessingEntity):
         """Return other details about the sensor state."""
         attr = self._tags.copy()
         attr.update({'response_time': self._response_time})
+        attr.update({'confident_tags': self._total_confident_tags})
         return attr
 
     @property

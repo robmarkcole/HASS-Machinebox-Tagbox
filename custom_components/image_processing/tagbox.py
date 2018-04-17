@@ -66,10 +66,13 @@ class Tagbox(ImageProcessingEntity):
     def process_image(self, image):
         """Process an image."""
         timer_start = time.perf_counter()
-        response = requests.post(
-            self._url,
-            json=self.encode_image(image)
-            ).json()
+        try:
+            response = requests.post(
+                self._url,
+                json=self.encode_image(image)
+                ).json()
+        except:
+            response = {'success': False}
 
         if response['success']:
             elapsed_time = time.perf_counter() - timer_start

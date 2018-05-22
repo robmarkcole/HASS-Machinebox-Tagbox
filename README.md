@@ -1,25 +1,24 @@
-# HASS-Machinebox-Tagbox
-Home-Assistant component for image classification (`tag` detection) using Machinebox.io [Tagbox](https://machinebox.io/docs/tagbox/recognizing-images)
+Home-Assistant custom component for image classification (`tag` detection) using Machinebox.io [Tagbox](https://machinebox.io/docs/tagbox/recognizing-images). The component adds an `image_processing` entity, where the state of the entity is the most likely tag in the image. All other identified tags are listed as attributes. Template binary sensors can be used to indicate the presence of a tag in an image, allowing their use as conditions in automations.
 
 Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder).
+
 Add to your HA config:
 ```yaml
 image_processing:
   - platform: tagbox
-    scan_interval: 5
-    endpoint: localhost:8080
+    ip_address: localhost
+    port: 8080
     source:
       - entity_id: camera.local_file
     tags:
       - food
 ```
-Configuration variables:
-- **endpoint**: the ip and port of your facebox instance
-- **scan_interval**: [see the docs](https://www.home-assistant.io/docs/configuration/platform_options/#scan-interval), units seconds.
-- **source**: Must be a camera.
-- **tags**: An attribute is created for each entry in `tags`. The value of a tag is `0` if the tag is not detected, otherwise it is the confidence of detection. Use lowercase.
 
-The component adds an `image_processing` entity. The state of the entity is the most likely tag in the image. The entity has an attribute `confident_tags` which is the total number of tags with a confidence greater than zero. The attribute `response_time` is the time in seconds for tagbox to perform processing on an image. Your `scan_interval` therefore should not be shorter than `response_time`.
+Configuration variables:
+- **ip_address**: the ip of your facebox instance
+- **port**: the port of your facebox instance
+- **source**: must be a camera.
+- **tags**: an attribute is always created for each entry in `tags`. The value of a tag is `0` if the tag is not detected, otherwise it is the confidence of detection. Use lowercase.
 
 The use of `tags` allows the creation of [template binary sensors](https://www.home-assistant.io/components/binary_sensor.template/) to indicate the presence of a tag in an image. For example:
 ```yaml
@@ -58,5 +57,5 @@ Note that for development I am using a [file camera](https://www.home-assistant.
 ```yaml
 camera:
   - platform: local_file
-    file_path: /images/food_photo.jpg
+    file_path: /images/dog.jpg
 ```

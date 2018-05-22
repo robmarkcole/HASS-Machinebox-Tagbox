@@ -11,27 +11,28 @@ image_processing:
     source:
       - entity_id: camera.local_file
     tags:
-      - food
+      - dog
 ```
 
 Configuration variables:
-- **ip_address**: the ip of your facebox instance
-- **port**: the port of your facebox instance
+- **ip_address**: the ip of your Tagbox instance
+- **port**: the port of your Tagbox instance
 - **source**: must be a camera.
 - **tags**: an attribute is always created for each entry in `tags`. The value of a tag is `0` if the tag is not detected, otherwise it is the confidence of detection. Use lowercase.
 
-The use of `tags` allows the creation of [template binary sensors](https://www.home-assistant.io/components/binary_sensor.template/) to indicate the presence of a tag in an image. For example:
+Configuring `tags` allows the use of [template binary sensors](https://www.home-assistant.io/components/binary_sensor.template/) to display the presence or not of a tag in an image. For example, the following creates a binary sensor which is `on` when the likelihood of a dog being in the image is greater than 50%:
 ```yaml
 binary_sensor:
   - platform: template
     sensors:
       food:
         value_template: >-
-          {{states.image_processing.tagbox_local_file.attributes.food > 0.5}}
+          {{states.image_processing.tagbox_local_file.attributes.dog > 0.5}}
 ```
 
+
 <p align="center">
-<img src="https://github.com/robmarkcole/HASS-Machinebox-Tagbox/blob/master/usage.png" width="800">
+<img src="https://github.com/robmarkcole/HASS-Machinebox-Tagbox/blob/master/usage.png" width="650">
 </p>
 
 ### Get Tagbox
@@ -41,7 +42,7 @@ sudo docker pull machinebox/tagbox
 ```
 
 #### Run Tagbox
-[Run tagbox with](https://machinebox.io/docs/tagbox/recognizing-images):
+[Run Tagbox with](https://machinebox.io/docs/tagbox/recognizing-images):
 ```
 MB_KEY="INSERT-YOUR-KEY-HERE"
 sudo docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" machinebox/tagbox

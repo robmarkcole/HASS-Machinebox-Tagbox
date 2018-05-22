@@ -12,6 +12,7 @@ image_processing:
       - entity_id: camera.local_file
     tags:
       - dog
+      - food
 ```
 
 Configuration variables:

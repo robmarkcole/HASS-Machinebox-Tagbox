@@ -32,7 +32,7 @@ binary_sensor:
 ```
 
 <p align="center">
-<img src="https://github.com/robmarkcole/HASS-Machinebox-Tagbox/blob/master/usage.png" width="500">
+<img src="https://github.com/robmarkcole/HASS-Machinebox-Tagbox/blob/master/usage.png" width="800">
 </p>
 
 ### Get Tagbox

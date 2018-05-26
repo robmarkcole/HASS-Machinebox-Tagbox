@@ -101,6 +101,7 @@ class TagClassifyEntity(ImageProcessingEntity):
             state = max(tags.keys(), key=(lambda k: tags[k]))
         except:
             state = None
+            _LOGGER.warning("%s found no tags in the image", CLASSIFIER)
         return tags, state
 
     @property

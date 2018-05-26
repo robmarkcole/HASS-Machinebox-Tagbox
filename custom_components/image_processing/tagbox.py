@@ -97,8 +97,10 @@ class TagClassifyEntity(ImageProcessingEntity):
 
         if response['custom_tags']:
             tags.update(process_tags(response['custom_tags']))
-
-        state = max(tags.keys(), key=(lambda k: tags[k]))
+        try:
+            state = max(tags.keys(), key=(lambda k: tags[k]))
+        except:
+            state = None
         return tags, state
 
     @property

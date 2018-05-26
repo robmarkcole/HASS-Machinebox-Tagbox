@@ -19,13 +19,10 @@ from homeassistant.const import (CONF_IP_ADDRESS, CONF_PORT)
 _LOGGER = logging.getLogger(__name__)
 
 CLASSIFIER = 'tagbox'
-CONF_TAGS = 'tags'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_IP_ADDRESS): cv.string,
     vol.Required(CONF_PORT): cv.port,
-    vol.Optional(CONF_TAGS, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
 })
 
 
@@ -53,7 +50,6 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             config[CONF_PORT],
             camera[CONF_ENTITY_ID],
             camera.get(CONF_NAME),
-            config[CONF_TAGS],
         ))
     add_devices(entities)
 
@@ -61,7 +57,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class TagClassifyEntity(ImageProcessingEntity):
     """Perform a tag search via a Tagbox."""
 
-    def __init__(self, ip, port, camera_entity, name, tags):
+    def __init__(self, ip, port, camera_entity, name):
         """Init with the IP and PORT"""
         super().__init__()
         self._url = "http://{}:{}/{}/check".format(ip, port, CLASSIFIER)
@@ -72,9 +68,8 @@ class TagClassifyEntity(ImageProcessingEntity):
             camera_name = split_entity_id(camera_entity)[1]
             self._name = "{} {}".format(
                 CLASSIFIER, camera_name)
-        self._default_tags = {tag: 0.0 for tag in tags}
-        self._tags = self._default_tags
         self._state = None
+        self._tags = {}
 
     def process_image(self, image):
         """Process an image."""
@@ -92,21 +87,18 @@ class TagClassifyEntity(ImageProcessingEntity):
         if response['success']:
             self._tags, self._state = self.process_response(response)
         else:
-            self._state = "Request_failed"
-            self._tags = self._default_tags
+            self._state = None
+            self._tags = {}
 
     def process_response(self, response):
         """Process response data, returning the processed tags and state."""
-        tags = self._default_tags.copy()
+        tags = {}
         tags.update(process_tags(response['tags']))
 
         if response['custom_tags']:
             tags.update(process_tags(response['custom_tags']))
-        # Default tags have probability 0.0 and cause an exception.
-        try:
-            state = max(tags.keys(), key=(lambda k: tags[k]))
-        except:
-            state = "no_tags_identified"
+
+        state = max(tags.keys(), key=(lambda k: tags[k]))
         return tags, state
 
     @property

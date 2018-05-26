@@ -1,4 +1,4 @@
-Home-Assistant custom component for image classification (`tag` detection) using Machinebox.io [Tagbox](https://machinebox.io/docs/tagbox/recognizing-images). The component adds an `image_processing` entity, where the state of the entity is the most likely tag in the image. All other identified tags are listed as attributes. Template binary sensors can be used to indicate the presence of a tag in an image, allowing their use as conditions in automations.
+Home-Assistant custom component for image classification (`tag` detection) using Machinebox.io [Tagbox](https://machinebox.io/docs/tagbox/recognizing-images). The component adds an `image_processing` entity, where the state of the entity is the most likely tag in the image. 
 
 Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder).
 
@@ -10,27 +10,12 @@ image_processing:
     port: 8080
     source:
       - entity_id: camera.local_file
-    tags:
-      - dog
-      - food
 ```
 
 Configuration variables:
 - **ip_address**: the ip of your Tagbox instance
 - **port**: the port of your Tagbox instance
 - **source**: must be a camera.
-- **tags**: an attribute is always created for each entry in `tags`. The value of a tag is `0` if the tag is not detected, otherwise it is the confidence of detection. Use lowercase.
-
-Configuring `tags` allows the use of [template binary sensors](https://www.home-assistant.io/components/binary_sensor.template/) to display the presence or not of a tag in an image. For example, the following creates a binary sensor which is `on` when the likelihood of a dog being in the image is greater than 50%:
-```yaml
-binary_sensor:
-  - platform: template
-    sensors:
-      food:
-        value_template: >-
-          {{states.image_processing.tagbox_local_file.attributes.dog > 0.5}}
-```
-
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-Machinebox-Tagbox/blob/master/tagbox_usage.png" width="650">

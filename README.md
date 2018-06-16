@@ -38,6 +38,9 @@ sudo docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" -e MB_TAGBOX_ONLY_CUSTOM_TAGS=t
 ```
 You should see a message on startup `pretrained tags are disabled, only custom tags will be returned`.
 
+### Default tags
+Tagbox is trained on https://storage.googleapis.com/openimages/web/index.html with the default tags listed in `tagbox_classes.csv`
+
 ### Teaching tagbox
 I've written a script to allow teaching tagbox from folders of images, the script is at https://github.com/robmarkcole/tagbox_python
 

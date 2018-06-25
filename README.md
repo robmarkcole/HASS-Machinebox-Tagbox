@@ -67,5 +67,5 @@ Note that for development I am using a [file camera](https://www.home-assistant.
 ```yaml
 camera:
   - platform: local_file
-    file_path: /images/htebeatles.jpg
+    file_path: /images/thebeatles.jpg
 ```

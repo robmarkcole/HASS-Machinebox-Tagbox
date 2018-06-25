@@ -19,26 +19,53 @@ from homeassistant.const import (CONF_IP_ADDRESS, CONF_PORT)
 _LOGGER = logging.getLogger(__name__)
 
 CLASSIFIER = 'tagbox'
+CONF_SPECIAL_TAGS = 'special_tags'
+TIMEOUT = 9
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_IP_ADDRESS): cv.string,
     vol.Required(CONF_PORT): cv.port,
+    vol.Optional(CONF_SPECIAL_TAGS, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
 })
 
 
 def encode_image(image):
     """base64 encode an image stream."""
     base64_img = base64.b64encode(image).decode('ascii')
-    return {"base64": base64_img}
+    return base64_img
 
 
-def process_tags(tags_data):
-    """Process tags data, returning the tag and rounded confidence."""
-    processed_tags = {
-        tag['tag'].lower(): round(tag['confidence'], 2)
-        for tag in tags_data
-        }
-    return processed_tags
+def format_tags(tags):
+    """Return the formatted name and rounded confidence of tags."""
+    return {entry['tag'].lower(): round(entry['confidence'], 2)
+            for entry in tags}
+
+
+def parse_tags(tags, api_tags):
+    """Update the tags with the new data from the API."""
+    tags.update(format_tags(api_tags['tags']))
+    if api_tags['custom_tags']:
+        tags.update(format_tags(api_tags['custom_tags']))
+    try:
+        state = max(tags.keys(), key=(lambda k: tags[k]))
+    except:
+        state = None
+        _LOGGER.warning("%s found no tags in the image", CLASSIFIER)
+    return tags, state
+
+
+def post_image(url, image):
+    """Post an image to the classifier."""
+    try:
+        response = requests.post(
+            url,
+            json={"base64": encode_image(image)},
+            timeout=TIMEOUT
+            )
+        return response
+    except requests.exceptions.ConnectionError:
+        _LOGGER.error("ConnectionError: Is %s running?", CLASSIFIER)
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
@@ -50,6 +77,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             config[CONF_PORT],
             camera[CONF_ENTITY_ID],
             camera.get(CONF_NAME),
+            config[CONF_SPECIAL_TAGS],
         ))
     add_devices(entities)
 
@@ -57,10 +85,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 class TagClassifyEntity(ImageProcessingEntity):
     """Perform a tag search via a Tagbox."""
 
-    def __init__(self, ip, port, camera_entity, name):
+    def __init__(self, ip, port, camera_entity, name, special_tags):
         """Init with the IP and PORT"""
         super().__init__()
-        self._url = "http://{}:{}/{}/check".format(ip, port, CLASSIFIER)
+        self._url_check = "http://{}:{}/{}/check".format(ip, port, CLASSIFIER)
         self._camera = camera_entity
         if name:
             self._name = name
@@ -68,41 +96,20 @@ class TagClassifyEntity(ImageProcessingEntity):
             camera_name = split_entity_id(camera_entity)[1]
             self._name = "{} {}".format(
                 CLASSIFIER, camera_name)
+        self._special_tags = {tag: 0.0 for tag in special_tags}
+        self._tags = self._special_tags
         self._state = None
-        self._tags = {}
 
     def process_image(self, image):
         """Process an image."""
-        response = {}
-        try:
-            response = requests.post(
-                self._url,
-                json=encode_image(image),
-                timeout=9
-                ).json()
-        except requests.exceptions.ConnectionError:
-            _LOGGER.error("ConnectionError: Is %s running?", CLASSIFIER)
-            response['success'] = False
-
-        if response['success']:
-            self._tags, self._state = self.process_response(response)
+        response = post_image(self._url_check, image)
+        if response is not None:
+            response_json = response.json()
+            if response_json['success']:
+                self._tags, self._state = parse_tags(self._tags, response_json)
         else:
             self._state = None
-            self._tags = {}
-
-    def process_response(self, response):
-        """Process response data, returning the processed tags and state."""
-        tags = {}
-        tags.update(process_tags(response['tags']))
-
-        if response['custom_tags']:
-            tags.update(process_tags(response['custom_tags']))
-        try:
-            state = max(tags.keys(), key=(lambda k: tags[k]))
-        except:
-            state = None
-            _LOGGER.warning("%s found no tags in the image", CLASSIFIER)
-        return tags, state
+            self._tags = self._special_tags
 
     @property
     def camera_entity(self):
@@ -122,5 +129,6 @@ class TagClassifyEntity(ImageProcessingEntity):
     @property
     def device_state_attributes(self):
         """Return other details about the sensor state."""
-        attr = self._tags.copy()
-        return attr
+        return {
+            'tags': self._tags,
+            }

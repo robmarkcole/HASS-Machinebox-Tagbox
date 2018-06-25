@@ -10,12 +10,26 @@ image_processing:
     port: 8080
     source:
       - entity_id: camera.local_file
+    special_tags:
+      - people
 ```
 
 Configuration variables:
 - **ip_address**: the ip of your Tagbox instance
 - **port**: the port of your Tagbox instance
 - **source**: must be a camera.
+- **special_tags**: (Optional) tags which are always present in attributes.
+
+Configured `special_tags` are always present in the attribute `tags`, allowing the use of [template binary sensors](https://www.home-assistant.io/components/binary_sensor.template/) to display the presence or not of a special tag in an image. For example, the following creates a binary sensor which is `on` when the likelihood of a person being in the image is greater than 50%:
+
+```yaml
+binary_sensor:
+  - platform: template
+    sensors:
+      people:
+        value_template: >-
+          {{states.image_processing.tagbox_local_file.attributes.tags.people > 0.5}}
+```
 
 <p align="center">
 <img src="https://github.com/robmarkcole/HASS-Machinebox-Tagbox/blob/master/tagbox_usage.png" width="650">
@@ -53,5 +67,5 @@ Note that for development I am using a [file camera](https://www.home-assistant.
 ```yaml
 camera:
   - platform: local_file
-    file_path: /images/dog.jpg
+    file_path: /images/htebeatles.jpg
 ```

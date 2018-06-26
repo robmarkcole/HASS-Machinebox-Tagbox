@@ -9,24 +9,25 @@ import requests
 import logging
 import voluptuous as vol
 
-from homeassistant.core import split_entity_id
+from homeassistant.core import (
+    callback, split_entity_id)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.image_processing import (
-    PLATFORM_SCHEMA, ImageProcessingEntity, CONF_SOURCE, CONF_ENTITY_ID,
-    CONF_NAME)
-from homeassistant.const import (CONF_IP_ADDRESS, CONF_PORT)
+    PLATFORM_SCHEMA, ImageProcessingEntity, ATTR_CONFIDENCE, CONF_CONFIDENCE,
+    CONF_SOURCE, CONF_ENTITY_ID, CONF_NAME)
+from homeassistant.const import (
+    ATTR_ENTITY_ID, ATTR_NAME, CONF_IP_ADDRESS, CONF_PORT)
+from homeassistant.util.async_ import run_callback_threadsafe
 
 _LOGGER = logging.getLogger(__name__)
 
 CLASSIFIER = 'tagbox'
-CONF_SPECIAL_TAGS = 'special_tags'
+EVENT_DETECT_TAG = 'image_processing.detect_tag'
 TIMEOUT = 9
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_IP_ADDRESS): cv.string,
     vol.Required(CONF_PORT): cv.port,
-    vol.Optional(CONF_SPECIAL_TAGS, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
 })
 
 
@@ -36,23 +37,21 @@ def encode_image(image):
     return base64_img
 
 
-def format_tags(tags):
-    """Return the formatted name and rounded confidence of tags."""
-    return {entry['tag'].lower(): round(entry['confidence'], 2)
-            for entry in tags}
+def get_matched_tags(tags, confidence):
+    """Return the name and rounded confidence of matched tags."""
+    return {tag['name']: tag['confidence']
+            for tag in tags if tag['confidence'] > confidence}
 
 
-def parse_tags(tags, api_tags):
-    """Update the tags with the new data from the API."""
-    tags.update(format_tags(api_tags['tags']))
-    if api_tags['custom_tags']:
-        tags.update(format_tags(api_tags['custom_tags']))
-    try:
-        state = max(tags.keys(), key=(lambda k: tags[k]))
-    except:
-        state = None
-        _LOGGER.warning("%s found no tags in the image", CLASSIFIER)
-    return tags, state
+def parse_tags(api_tags):
+    """Parse the API tag data into the format required."""
+    parsed_tags = []
+    for entry in api_tags:
+        tag = {}
+        tag[ATTR_NAME] = entry['tag']
+        tag[ATTR_CONFIDENCE] = round(100.0*entry['confidence'], 2)
+        parsed_tags.append(tag)
+    return parsed_tags
 
 
 def post_image(url, image):
@@ -72,20 +71,20 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     """Set up the classifier."""
     entities = []
     for camera in config[CONF_SOURCE]:
-        entities.append(TagClassifyEntity(
+        entities.append(ImageProcessingTagEntity(
             config[CONF_IP_ADDRESS],
             config[CONF_PORT],
             camera[CONF_ENTITY_ID],
             camera.get(CONF_NAME),
-            config[CONF_SPECIAL_TAGS],
+            config[CONF_CONFIDENCE],
         ))
     add_devices(entities)
 
 
-class TagClassifyEntity(ImageProcessingEntity):
+class ImageProcessingTagEntity(ImageProcessingEntity):
     """Perform a tag search via a Tagbox."""
 
-    def __init__(self, ip, port, camera_entity, name, special_tags):
+    def __init__(self, ip, port, camera_entity, name, confidence):
         """Init with the IP and PORT"""
         super().__init__()
         self._url_check = "http://{}:{}/{}/check".format(ip, port, CLASSIFIER)
@@ -96,9 +95,9 @@ class TagClassifyEntity(ImageProcessingEntity):
             camera_name = split_entity_id(camera_entity)[1]
             self._name = "{} {}".format(
                 CLASSIFIER, camera_name)
-        self._special_tags = {tag: 0.0 for tag in special_tags}
-        self._tags = self._special_tags
-        self._state = None
+        self._confidence = confidence
+        self.tags = []
+        self._matched = {}
 
     def process_image(self, image):
         """Process an image."""
@@ -106,10 +105,56 @@ class TagClassifyEntity(ImageProcessingEntity):
         if response is not None:
             response_json = response.json()
             if response_json['success']:
-                self._tags, self._state = parse_tags(self._tags, response_json)
+                api_tags = response_json['tags'] + response_json['custom_tags']
+                tags = parse_tags(api_tags)
+                self.process_tags(tags)
+                self._matched = get_matched_tags(tags, self.confidence)
         else:
-            self._state = None
-            self._tags = self._special_tags
+            self.tags = []
+            self._matched = {}
+
+    @property
+    def confidence(self):
+        """Return minimum confidence for send events."""
+        return self._confidence
+
+    @property
+    def state(self):
+        """Return the state of the entity."""
+        state = None
+
+        if len(self._matched) > 0:
+            return self.tags[0][ATTR_NAME]
+
+        return state
+
+    def process_tags(self, tags):
+        """Send event with detected tags and store data."""
+        run_callback_threadsafe(
+            self.hass.loop, self.async_process_tags, tags).result()
+
+    @callback
+    def async_process_tags(self, tags):
+        """Send event with detected tags and store data.
+        Tags are a dict in follow format:
+         [
+           {
+              ATTR_CONFIDENCE: 80,
+              ATTR_NAME: 'people',
+           },
+         ]
+        This method must be run in the event loop.
+        """
+        # Send events
+        for tag in tags:
+            tag.update({ATTR_ENTITY_ID: self.entity_id})
+            if tag[ATTR_CONFIDENCE] > self.confidence:
+                self.hass.async_add_job(
+                    self.hass.bus.async_fire, EVENT_DETECT_TAG, tag
+                )
+
+        # Update entity store
+        self.tags = tags
 
     @property
     def camera_entity(self):
@@ -122,13 +167,11 @@ class TagClassifyEntity(ImageProcessingEntity):
         return self._name
 
     @property
-    def state(self):
-        """Return the state of the entity."""
-        return self._state
-
-    @property
     def device_state_attributes(self):
         """Return other details about the sensor state."""
         return {
-            'tags': self._tags,
+            'tags': self.tags,
+            'total_tags': len(self.tags),
+            'matched_tags': self._matched,
+            'total_matched_tags': len(self._matched),
             }

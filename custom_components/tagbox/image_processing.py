@@ -166,7 +166,7 @@ class ImageProcessingTagEntity(ImageProcessingEntity):
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement."""
-        return "tags"
+        return ""
 
     @property
     def device_state_attributes(self):

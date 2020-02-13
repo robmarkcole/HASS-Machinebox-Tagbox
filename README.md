@@ -27,17 +27,17 @@ Configuration variables:
 ### Tagbox
 Get/update Tagbox [from Dockerhub](https://hub.docker.com/r/machinebox/tagbox/) by running:
 ```
-sudo docker pull machinebox/tagbox
+docker pull machinebox/tagbox
 ```
 
 [Run Tagbox with](https://machinebox.io/docs/tagbox/recognizing-images):
 ```
 MB_KEY="INSERT-YOUR-KEY-HERE"
-sudo docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" machinebox/tagbox
+docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" machinebox/tagbox
 ```
 To limit tagbox to only custom tags, add to the command `-e MB_TAGBOX_ONLY_CUSTOM_TAGS=true`. Tagbox will be then only return and calculate custom tags, saving some compute resources.
 ```
-sudo docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" -e MB_TAGBOX_ONLY_CUSTOM_TAGS=true machinebox/tagbox
+docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" -e MB_TAGBOX_ONLY_CUSTOM_TAGS=true machinebox/tagbox
 ```
 You should see a message on startup `pretrained tags are disabled, only custom tags will be returned`.
 

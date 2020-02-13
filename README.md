@@ -1,4 +1,4 @@
-Home-Assistant custom component for image classification (`tag` detection) using Machinebox.io [Tagbox](https://machinebox.io/docs/tagbox/recognizing-images). The component adds an `image_processing` entity, where the state of the entity is the most likely tag in the image above a given confidence threshold. The attribute `tags` contains all data returned by the API, whilst the attribute `matched_tags` contains only tags matched with a confidence greater than a `confidence` threshold (in %). The event `image_processing.detect_tag` is fired for each tag above the confidence threshold, and the event data contains the fields `name` of tag, `confidence` of detection, and the `entity_id` that fired the event.
+Home-Assistant custom component for image classification (`tag` detection) using Machinebox.io [Tagbox](https://machinebox.io/docs/tagbox/recognizing-images). The component adds an `image_processing` entity, where the state of the entity is the most likely tag in the image above a given confidence threshold. The attribute `tags` contains all data returned by the API, whilst the attribute `matched_tags` contains only tags matched with a confidence greater than a `confidence` threshold (in %). The event `tagbox.detect_tag` is fired for each tag above the confidence threshold, and the event data contains the fields `name` of tag, `confidence` of detection, and the `entity_id` that fired the event.
 
 Place the `custom_components` folder in your configuration directory (or add its contents to an existing custom_components folder).
 
@@ -16,7 +16,7 @@ image_processing:
 Configuration variables:
 - **ip_address**: the ip of your Tagbox instance
 - **port**: the port of your Tagbox instance
-- **confidence**: (Optional, default 80) The threshold in % above which tags appear in `matched_tags` and `image_processing.detect_tag` events are fired.
+- **confidence**: (Optional, default 80) The threshold in % above which tags appear in `matched_tags` and `tagbox.detect_tag` events are fired.
 - **source**: must be a camera.
 
 
@@ -27,17 +27,17 @@ Configuration variables:
 ### Tagbox
 Get/update Tagbox [from Dockerhub](https://hub.docker.com/r/machinebox/tagbox/) by running:
 ```
-sudo docker pull machinebox/tagbox
+docker pull machinebox/tagbox
 ```
 
 [Run Tagbox with](https://machinebox.io/docs/tagbox/recognizing-images):
 ```
 MB_KEY="INSERT-YOUR-KEY-HERE"
-sudo docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" machinebox/tagbox
+docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" machinebox/tagbox
 ```
 To limit tagbox to only custom tags, add to the command `-e MB_TAGBOX_ONLY_CUSTOM_TAGS=true`. Tagbox will be then only return and calculate custom tags, saving some compute resources.
 ```
-sudo docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" -e MB_TAGBOX_ONLY_CUSTOM_TAGS=true machinebox/tagbox
+docker run -p 8080:8080 -e "MB_KEY=$MB_KEY" -e MB_TAGBOX_ONLY_CUSTOM_TAGS=true machinebox/tagbox
 ```
 You should see a message on startup `pretrained tags are disabled, only custom tags will be returned`.
 

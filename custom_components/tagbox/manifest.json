@@ -1,0 +1,12 @@
+{
+        "domain": "tagbox",
+        "name": "tagbox custom integration",
+        "documentation": "https://github.com/robmarkcole/HASS-Machinebox-Tagbox",
+        "requirements": [
+                "requests"
+        ],
+        "dependencies": [],
+        "codeowners": [
+                "@robmarkcole"
+        ]
+}
